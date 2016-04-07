@@ -1,0 +1,13 @@
+Git instructions
+
+1. Initialize locally
+2. Initialize on github
+3. SublimeGit "Add remote branch"
+	Add as origin
+	Should be something like:
+		git@github.com:p201-sp2016/SiVTempFit-RE.git
+4. SubmlimeGit "Fetch"
+	This refreshes knowledge about remote branch
+5. SublimeGit "Pull"
+	Follow instructions
+6. SublimeGit "Push"
