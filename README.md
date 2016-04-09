@@ -1,5 +1,5 @@
-# SiVTempFit
-Bayesian analysis of SiV spectral data and spectroscopic temperature determination
+# sivtempfit
+Bayesian analysis of SiV spectral data and spectroscopic temperature determination in python.
 
 This package is designed to analyze fluorescence spectra from SiV centers in diamond by performing Bayesian parameter estimation. The emphasis is on ease-of-use and producing reliable estimates of the fluorescence wavelength and associated uncertainty.
 
