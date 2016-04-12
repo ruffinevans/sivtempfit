@@ -6,7 +6,7 @@ setup(name='sivtempfit',
       url='https://github.com/p201-sp2016/SiVTempFit-RE',
       author='Ruffin Evans',
       author_email='ruffinevans@gmail.com',
-      license='None',
+      license='GPLv3',
       packages=['sivtempfit'],
       # All dependencies should be here.
       # If dependencies are not on PyPI, use URL. See:
