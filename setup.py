@@ -17,7 +17,8 @@ setup(name='sivtempfit',
           'emcee',
           'seaborn',
           'matplotlib',
-          'pandas',
-          'json'
+          'pandas'
       ],
+      test_suite='nose.collector',
+      tests_require=['nose'],
       zip_safe=False)

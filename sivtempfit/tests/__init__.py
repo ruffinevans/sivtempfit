@@ -4,4 +4,5 @@
 # from .text import test_asdf()
 # See https://python-packaging.readthedocs.org/en/latest/minimal.html
 
-import example_data_test
+# Don't actually need this line:
+# from . import example_data_test
