@@ -15,6 +15,9 @@ setup(name='sivtempfit',
           'numpy',
           'scipy',
           'emcee',
-          'seaborn'
+          'seaborn',
+          'matplotlib',
+          'pandas',
+          'json'
       ],
       zip_safe=False)

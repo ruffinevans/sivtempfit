@@ -7,6 +7,12 @@
 import numpy as np
 import seaborn as sns
 import emcee
+import matplotlib
+import matplotlib.pyplot as plt
+import pandas as pd
+import scipy.stats as stats  # Use for KDE in the end
+import scipy.optimize as opt  # Use for minimizing KDE
+import dataprocessing as dp
 
 
 def test_asdf():
