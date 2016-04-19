@@ -12,8 +12,4 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import scipy.stats as stats  # Use for KDE in the end
 import scipy.optimize as opt  # Use for minimizing KDE
-from . import dataprocessing as dp
-
-
-def test_asdf():
-    return 1
+from . import dataprocessing

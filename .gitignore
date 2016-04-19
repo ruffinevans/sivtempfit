@@ -86,3 +86,8 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Test/scratch file
+section_test_nb.ipynb
+simulated_spectrum.json
+test.json
