@@ -20,13 +20,12 @@ class TestSpectrumJSON(TestCase):
                                   'V': [1500, 2500, 2000]})
         test_dict = test_dict = {"T": 300, "Name": "Test Data"}
         test_Spectrum = dp.Spectrum(test_DataFrame, test_dict)
-        self.assertEqual(json.loads(test_Spectrum.to_json()), 
+        self.assertEqual(json.loads(test_Spectrum.to_json()),
             json.loads(json.dumps(json.loads(test_Spectrum.to_json()))))
 
     def test_JSON_io(self):
         # Test to make sure JSON can be loaded in properly from simple test file.
-        path_to_json = ("\\".join(dp.__file__.split('\\')[:-1]) + 
-            "\\exampledata\\test_json_simple.json")
+        path_to_json = io.get_example_data_file_path("test_json_simple.json")
         self.assertEqual(io.load_Spectrum(path_to_json).data['V'][0], 1500)
 
 class TestSpectrum(TestCase):
@@ -40,8 +39,7 @@ class TestModel(TestCase):
         # Test to make sure the model gives a MLE estimate of the amplitude that
         # is consistent with the simulated data.
         # This is a fairly demanding test. It also tests the data loading.
-        path_to_json = ("\\".join(dp.__file__.split('\\')[:-1]) + 
-            "\\exampledata\\simulated_spectrum.json")
+        path_to_json = io.get_example_data_file_path("simulated_spectrum.json")
         simulated_spectrum = io.load_Spectrum(path_to_json)
         test_amp_list = np.arange(400,600,0.5)
         test_ll = [two_peak_log_likelihood_Spectrum(simulated_spectrum, x, 10,
