@@ -4,8 +4,9 @@ from collections import OrderedDict
 import inspect
 import numpy as np
 
-# Adapted from https://github.com/tdimiduk/yaml-serialize (updated for python 3)
+
 class Printable:
+    # Adapted from https://github.com/tdimiduk/yaml-serialize (updated for python 3)
     @property
     def _dict(self):
         dump_dict = OrderedDict()
@@ -18,13 +19,14 @@ class Printable:
                 dump_dict[var] = item
 
         return dump_dict
-    
+
     def __repr__(self):
         keywpairs = ["{0}={1}".format(k[0], repr(k[1])) for k in self._dict.items()]
         return "{0}({1})".format(self.__class__.__name__, ", ".join(keywpairs))
 
     def __str__(self):
         return self.__repr__()
+
 
 class Spectrum(Printable):
     """
@@ -43,7 +45,7 @@ class Spectrum(Printable):
         (Will not work unless the object passed as data itself has a
         plot() method.)
         """
-        
+
         self.data.plot()
 
     def to_json(self):
@@ -51,11 +53,11 @@ class Spectrum(Printable):
         Outputs (as a string) a JSON representation of the data and metadata.
         """
 
-        return (json.dumps(self.metadata)[:-1]
-            + ", \"Spectrum\": "
-            + self.data.to_json()+"}")
+        return (json.dumps(self.metadata)[:-1] +
+                ", \"Spectrum\": " +
+                self.data.to_json()+"}")
 
-    #def __repr__(self):
+    # def __repr__(self):
     #    return json.dumps(self.to_json(), sort_keys=True,
     #            indent=4, separators=(',', ': '))
 
