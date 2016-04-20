@@ -89,5 +89,5 @@ ENV/
 
 # Test/scratch file
 section_test_nb.ipynb
-simulated_spectrum.json
+simulated_spectrum_ignore.json
 test.json
