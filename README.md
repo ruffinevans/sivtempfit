@@ -1,5 +1,6 @@
 # sivtempfit
 Bayesian analysis of SiV spectral data and spectroscopic temperature determination in python.
+
 **Author**: Ruffin Evans (ruffinevans@gmail.com)
 
 ## Description
