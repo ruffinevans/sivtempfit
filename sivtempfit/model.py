@@ -77,28 +77,40 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
                                       center2, width1, width2,
                                       light_background)
 
+    # If the prediction from the model is ever <= 0,
+    # the likelihood is zero and the log-likelihood is -np.inf
+    # This is because the system can never produce negative
+    # photons
+
+    if np.min(y_two_peak_model) <= 0 and not(debug):
+        return -np.inf
+
     # Construct the bounds of convolution
     # If the conv_range is -1, go out to the max of the
     # max(y, model prediction) + 5x the square root of the max.
+    # New: also do min
     max_y = 0
     if conv_range == -1:
+        min_y = np.min([np.min(y_two_peak_model), np.min(y)])
         max_y = np.max([np.max(y_two_peak_model), np.max(y)])
-        conv_max = max_y + 3 * np.sqrt(max_y)
+        conv_min = np.min(np.array([0, min_y - 2.5 * np.sqrt(min_y)]))
+        conv_max = max_y + 2.5 * np.sqrt(max_y)
     elif conv_range > 0:
         conv_max = conv_range
     else:
         raise ValueError('Range for convolution must be positive')
-    conv_list = np.arange(0, conv_max)[:, np.newaxis]
+    conv_list = np.arange(conv_min, conv_max)[:, np.newaxis]
     # Construct the convolution matrix by broadcasting
     conv_mat = (conv_list - y) + y
 
     # Construct poisson term
-    poisson_term = stats.poisson.pmf(conv_mat, y_two_peak_model)
+    poisson_term = stats.poisson._pmf(conv_mat, y_two_peak_model)
     # Construct gaussian term
     gaussian_term = ((1 / (np.sqrt(2.0 * np.pi * ccd_stdev**2))) *
                      np.exp(-1.0 * (y - conv_mat - ccd_background)**2 /
                             (2.0 * ccd_stdev**2)))
     # Perform sum over zeroth axis to get likelihoods
+    # nansum is extremely dangerous for debugging and best avoided
     likelihood_list = np.sum(poisson_term * gaussian_term, 0)
 
     # Test to make sure poisson and gaussian terms are normalized.
@@ -122,7 +134,7 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
                              ' the conv_range variable!')
     if debug:
         return [conv_list, conv_mat, poisson_term,
-                gaussian_term, likelihood_list, conv_max]
+                gaussian_term, likelihood_list, conv_max, y_two_peak_model]
     # Return sum of log_likelihoods
     return np.sum(np.log(likelihood_list))
 
