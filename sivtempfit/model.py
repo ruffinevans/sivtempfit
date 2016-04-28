@@ -1,13 +1,13 @@
 import numpy as np
 import scipy.stats as stats
 
-
 def lorentz(x, center, width):
     """
     A lorentzian function with peak position 'center' and FWHM 'width'.
+    Returns positive values only.
     """
 
-    return (1 / np.pi) * (width / 2) / ((x - center)**2 + (width / 2)**2)
+    return np.fabs((1 / np.pi) * (width / 2) / ((x - center)**2 + (width / 2)**2))
 
 
 def two_peak_model(x, amp1, amp2, center_offset, center2,
@@ -29,12 +29,11 @@ def two_peak_model(x, amp1, amp2, center_offset, center2,
             amp1 * lorentz(x, center_offset + center2, width1) +
             amp2 * lorentz(x, center2, width2))
 
-
 def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
                             width1, width2, light_background,
                             ccd_background, ccd_stdev,
                             conv_range = -1, debug = False,
-                            test_norm = True):
+                            test_norm = False):
     """
     Returns the log-likelihood calculated for the two-peak + CCD noise model.
     See also: two_peak_model
@@ -91,18 +90,24 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
     # New: also do min
     max_y = 0
     if conv_range == -1:
-        min_y = np.min([np.min(y_two_peak_model), np.min(y)])
-        max_y = np.max([np.max(y_two_peak_model), np.max(y)])
+        # Optimize these, maybe do max of min and min of max
+        # Before, this was not this way, which meant that size of matrices
+        # could grow arbitrarily depending on prediction. This way they are at
+        # least bounded by the actual data.
+        min_y = np.max([np.min(y_two_peak_model), np.min(y)])
+        max_y = np.min([np.max(y_two_peak_model), np.max(y)])
         conv_min = np.min(np.array([0, min_y - 2.5 * np.sqrt(min_y)]))
         conv_max = max_y + 2.5 * np.sqrt(max_y)
     elif conv_range > 0:
         conv_max = conv_range
     else:
         raise ValueError('Range for convolution must be positive')
+    
     conv_list = np.arange(conv_min, conv_max)[:, np.newaxis]
     # Construct the convolution matrix by broadcasting
-    conv_mat = (conv_list - y) + y
-
+    # Probably there is a faster way to do this.
+    conv_mat = conv_list + 0*y
+    
     # Construct poisson term
     poisson_term = stats.poisson._pmf(conv_mat, y_two_peak_model)
     # Construct gaussian term
@@ -136,12 +141,14 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
         return [conv_list, conv_mat, poisson_term,
                 gaussian_term, likelihood_list, conv_max, y_two_peak_model]
     # Return sum of log_likelihoods
-    return np.sum(np.log(likelihood_list))
+    # import pdb; pdb.set_trace()
+    ll = np.sum(np.log(likelihood_list))
+    return ll
 
 
 def two_peak_log_likelihood_Spectrum(spectrum, amp1, amp2, T, m, C0, center2,
         width1, width2, light_background, ccd_background, ccd_stdev,
-        conv_range = -1, debug = False, test_norm = True):
+        conv_range = -1, debug = False, test_norm = False):
     """
     Returns the log-likelihood calculated for the two-peak + CCD noise model.
     See also: two_peak_model

@@ -16,6 +16,7 @@ import emcee
 from . import model
 from .dataprocessing import Spectrum
 import numpy as np
+import warnings
 
 def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
                          amp1_guess = None, amp1_std = None,
@@ -175,9 +176,8 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
             ccd_background_std, ccd_stdev_std),
         nwalkers)
 
-
 def mc_likelihood_sampler(data, calib_pos, nwalkers = 20, starting_positions = None, 
-                          run = True, nsteps = 2000):
+                          run = True, nsteps = 2000, threads = 1):
     """
     Returns an emcee sampler object based on the supplied data and the
     likelihood from the model.
@@ -195,14 +195,17 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers = 20, starting_positions = N
          If False, just returns the sampler object.
          If True, runs the sampler and then returns it.
     nsteps: Number of emcee steps. Default = 2000
+    threads: Number of threads to use in the emcee EnsembleSampler
 
     Note:
     -----
     See also generate_sample_ball which is used to generate starting_positions
     It will give a bit more fine-grained control over the sampling and may be
     useful if the emcee sampler does not produce reasonable results.
-    """
 
+    For more information on emcee, see the documentation:
+    http://dan.iel.fm/emcee/current/
+    """
     # Check to see if a spectrum object is passed. If so, use the data in the
     # Spectrum object. Otherwise, assume the user has passed a list of x/y
     # pairs.
@@ -234,10 +237,37 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers = 20, starting_positions = N
         # Call above function to get starting positions
         starting_positions = generate_sample_ball(data, calib_pos, nwalkers)
 
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood)
+    if not(isinstance(threads, int)):
+        raise ValueError('Threads must be a positive integer.')
+
+    if threads == 1:
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood, threads = 1)
+    elif threads >= 1:
+        warnings.warn("Multithreaded emcee is the context of the sivtempfit "+
+                      "package is not thoroughly tested. Use at your own risk!",
+                      RuntimeWarning)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood_params,
+                                        args = [x, y], threads = threads)
+    else:
+        raise ValueError('Threads must be a positive integer.')
 
     if not(run):
         return sampler
 
     sampler.run_mcmc(starting_positions, nsteps)
     return sampler
+
+# Define the log_likelihood in the form that the emcee sampler wants it.
+# We will define this here so that it can be pickled, which is necessary for 
+# parallel evaluation.
+# For an explanation, see the documentation here:
+# https://docs.python.org/2/library/pickle.html#what-can-be-pickled-and-unpickled
+def log_likelihood_params(theta, x, y):
+    # Theta is the list of parameters. We are only interested in a single
+    # spectrum here, so we do not include T or m in our sampling
+    amp1, amp2, C0, center2, width1, width2, light_background, \
+        ccd_background, ccd_stdev = theta
+
+    return model.two_peak_log_likelihood(x, y, amp1, amp2, 0, 0, C0,
+                center2, width1, width2, light_background, ccd_background,
+                ccd_stdev, conv_range = -1, debug = False, test_norm = False)
