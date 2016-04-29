@@ -3,6 +3,8 @@ Bayesian analysis of SiV spectral data and spectroscopic temperature determinati
 
 **Author**: Ruffin Evans (ruffinevans@gmail.com)
 
+Contains contributions from [`yaml-serialize`](https://github.com/tdimiduk/yaml-serialize) by Tom Dimiduk.
+
 ## Description
 This package is designed to analyze fluorescence spectra from SiV centers in diamond by performing Bayesian parameter estimation. The emphasis is on ease-of-use and producing reliable estimates of the fluorescence wavelength and associated uncertainty.
 
