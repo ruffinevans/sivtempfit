@@ -145,10 +145,10 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
         light_background_std = light_background_guess
 
     if ccd_background_guess is None:
-        ccd_background_guess = 0.8 * median_y
+        ccd_background_guess = median_y
 
     if ccd_background_std is None:
-        ccd_background_std = 0.5 * ccd_background_guess
+        ccd_background_std = 0.2 * ccd_background_guess
 
     if ccd_stdev_guess is None:
         ccd_stdev_guess = 10
@@ -176,7 +176,7 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
             ccd_background_std, ccd_stdev_std),
         nwalkers)
 
-def mc_likelihood_sampler(data, calib_pos, nwalkers = 20, starting_positions = None, 
+def mc_likelihood_sampler(data, calib_pos, nwalkers = 18, starting_positions = None, 
                           run = True, nsteps = 2000, threads = 1):
     """
     Returns an emcee sampler object based on the supplied data and the
