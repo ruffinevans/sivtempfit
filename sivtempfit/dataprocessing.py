@@ -67,3 +67,11 @@ class Spectrum(Printable):
         """
         f = open(fp, 'w')
         f.write(self.to_json())
+
+    def swap_cols(self):
+        """
+        Swaps the order of the columns in the underlying dataframe.
+        """
+        cols = self.data.columns.tolist()
+        reordered = [cols[1]] + [cols[0]]
+        self.data = self.data[reordered]

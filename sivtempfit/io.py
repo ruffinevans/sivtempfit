@@ -92,5 +92,9 @@ def import_horiba_multi(fp, metadata = None, metadatalist = None,
                     warnings.warn("Metadata not parsed correctly. Please check inputs.")
                 spectra_out[i] = dp.Spectrum(spectra[[spectra_x_key, spectra_y_keys[i]]],
                                         merge_dicts(file_meta, temperature_dicts[i]))
+
+    # Swap columns to get y-first. Makes it compatible with the rest of the
+    # code. Very unfortunate convention.
+    [x.swap_cols() for x in spectra_out]
     
     return spectra_out
