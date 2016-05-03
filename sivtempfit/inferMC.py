@@ -45,7 +45,7 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
                          light_background_guess = None, light_background_std = None,
                          ccd_background_guess = None, ccd_background_std = None,
                          ccd_stdev_guess = None, ccd_stdev_std = None,
-                         debug = False, return_y_values = False):
+                         debug = False, return_y_values = False, tightness = 10):
     """
     Creates an emcee sample ball to use as the starting position for the emcee
     sampler.
@@ -89,6 +89,8 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
                       center of the sample ball. Overrides the debug command.
                       Very useful for plotting against the data to see if it
                       approximately agrees.
+    tightness : scaling factor for the _std variables. A higher tightness 
+                means a more localized sample_ball.
 
 
     Explanation:
@@ -137,52 +139,52 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
         width1_guess = 5
 
     if width1_std is None:
-        width1_std = 2
+        width1_std = 2 / tightness
 
     if width2_guess is None:
         width2_guess = 0.02
 
     if width2_std is None:
-        width2_std = 0.01
+        width2_std = 0.01 / tightness
 
     if amp1_guess is None:
         amp1_guess = 2*(y_at_mid - median_y_bkrd) * width1_guess
 
     if amp1_std is None:
-        amp1_std = 0.2 * amp1_guess
+        amp1_std = 0.2 * amp1_guess / tightness
 
     if amp2_guess is None:
         amp2_guess = 1*(np.max(y) - median_y_bkrd) * width2_guess
 
     if amp2_std is None:
-        amp2_std = 0.2 * amp2_guess
+        amp2_std = 0.2 * amp2_guess / tightness
 
     if center_offset_guess is None:
         center_offset_guess = 740 - calib_pos_guess
 
     if center_offset_std is None:
-        center_offset_std = 1.5
+        center_offset_std = 1.5 / tightness
 
     if calib_pos_std is None:
-        calib_pos_std = 0.015
+        calib_pos_std = 0.015 / tightness
 
     if light_background_guess is None:
         light_background_guess = 0.05 * median_y_bkrd
 
     if light_background_std is None:
-        light_background_std = 0.5 * light_background_guess
+        light_background_std = 0.5 * light_background_guess / tightness
 
     if ccd_background_guess is None:
         ccd_background_guess = 0.95 * median_y_bkrd
 
     if ccd_background_std is None:
-        ccd_background_std = 0.2 * ccd_background_guess
+        ccd_background_std = 0.2 * ccd_background_guess / tightness
 
     if ccd_stdev_guess is None:
         ccd_stdev_guess = 10
 
     if ccd_stdev_std is None:
-        ccd_stdev_std = 2
+        ccd_stdev_std = 2 / tightness
 
 
     # Order of parameters is amp1, amp2, C0, center2, width1, width2,
@@ -214,8 +216,9 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
             ccd_background_std, ccd_stdev_std),
         nwalkers)
 
-def mc_likelihood_sampler(data, calib_pos, nwalkers = 18, starting_positions = None, 
-                          run = True, nsteps = 2000, threads = 1, safe_ll = False):
+def mc_likelihood_sampler(data, calib_pos, nwalkers = 64, starting_positions = None, 
+                          run = True, nsteps = 1000, threads = 1, safe_ll = False, 
+                          tightness = 10):
     """
     Returns an emcee sampler object based on the supplied data and the
     likelihood from the model.
@@ -238,6 +241,11 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers = 18, starting_positions = N
              convolution in a naive and definitely correct way, but is an
              order of magnitude slower than the improved version.
              Default: false.
+    tightness: defines the size of the spread of the sample_ball in parameter
+               space. Higher values of tighness mean a more localized
+               sample_ball. For more control, see the generate_sample_ball
+               function. If such a sample ball is passed as starting_positions,
+               the tightness argument is ignored.
 
     Note:
     -----
@@ -278,7 +286,8 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers = 18, starting_positions = N
 
     if starting_positions is None:
         # Call above function to get starting positions
-        starting_positions = generate_sample_ball(data, calib_pos, nwalkers)
+        starting_positions = generate_sample_ball(data, calib_pos, nwalkers,
+                                                  tightness = tightness)
 
     if not(isinstance(threads, int)):
         raise ValueError('Threads must be a positive integer.')
@@ -286,9 +295,10 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers = 18, starting_positions = N
     if threads == 1:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood, threads = 1)
     elif threads >= 1:
-        warnings.warn("Multithreaded emcee is the context of the sivtempfit "+
-                      "package is not thoroughly tested. Use at your own risk!",
-                      RuntimeWarning)
+        # I'm pretty sure this works fine now, so removing the warning:
+        # warnings.warn("Multithreaded emcee is the context of the sivtempfit "+
+        #               "package is not thoroughly tested. Use at your own risk!",
+        #               RuntimeWarning)
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood_params,
                                         args = [x, y, safe_ll], threads = threads)
     else:
