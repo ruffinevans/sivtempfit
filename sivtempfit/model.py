@@ -93,9 +93,15 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
     # If the prediction from the model is ever <= 0,
     # the likelihood is zero and the log-likelihood is -np.inf
     # This is because the system can never produce negative
-    # photons
+    # photons.
+    #
+    # If either background contribution is less than zero,
+    # the log-likelihood should also be negative infinity
+    # 
+    # This is, to some extent, including a prior.
 
-    if np.min(y_two_peak_model) <= 0 and not(debug):
+    if (np.min(y_two_peak_model) <= 0 or ccd_background < 0
+        or light_background < 0) and not(debug):
         return -np.inf
 
     # If safe is True, then do the naive convolution over the entire range

@@ -35,7 +35,7 @@ def log_likelihood_params(theta, x, y, safe_ll = False):
                 ccd_stdev, conv_range = -1, debug = False, test_norm = False,
                 safe = safe_ll)
 
-def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
+def generate_sample_ball(data, calib_pos_guess, nwalkers = 96,
                          amp1_guess = None, amp1_std = None,
                          amp2_guess = None, amp2_std = None,
                          center_offset_guess = None, center_offset_std = None,
@@ -45,7 +45,7 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
                          light_background_guess = None, light_background_std = None,
                          ccd_background_guess = None, ccd_background_std = None,
                          ccd_stdev_guess = None, ccd_stdev_std = None,
-                         debug = False, return_y_values = False, tightness = 10):
+                         debug = False, return_y_values = False, tightness = 1):
     """
     Creates an emcee sample ball to use as the starting position for the emcee
     sampler.
@@ -136,55 +136,55 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
     median_y_bkrd = np.median(y[near_end_index : ])
 
     if width1_guess is None:
-        width1_guess = 5
+        width1_guess = 7.2
 
     if width1_std is None:
-        width1_std = 2 / tightness
+        width1_std = 0.2 / tightness
 
     if width2_guess is None:
-        width2_guess = 0.02
+        width2_guess = 0.0113
 
     if width2_std is None:
-        width2_std = 0.01 / tightness
+        width2_std = 0.0005 / tightness
 
     if amp1_guess is None:
-        amp1_guess = 2*(y_at_mid - median_y_bkrd) * width1_guess
+        amp1_guess = 1.8*(y_at_mid - median_y_bkrd) * width1_guess
 
     if amp1_std is None:
-        amp1_std = 0.2 * amp1_guess / tightness
+        amp1_std = 0.02 * amp1_guess / tightness
 
     if amp2_guess is None:
-        amp2_guess = 1*(np.max(y) - median_y_bkrd) * width2_guess
+        amp2_guess = 1.5*(np.max(y) - median_y_bkrd) * width2_guess
 
     if amp2_std is None:
-        amp2_std = 0.2 * amp2_guess / tightness
+        amp2_std = 0.02 * amp2_guess / tightness
 
     if center_offset_guess is None:
         center_offset_guess = 740 - calib_pos_guess
 
     if center_offset_std is None:
-        center_offset_std = 1.5 / tightness
+        center_offset_std = 0.015 / tightness
 
     if calib_pos_std is None:
-        calib_pos_std = 0.015 / tightness
+        calib_pos_std = 0.00015 / tightness
 
     if light_background_guess is None:
-        light_background_guess = 0.05 * median_y_bkrd
+        light_background_guess = 0.003 * median_y_bkrd
 
     if light_background_std is None:
-        light_background_std = 0.5 * light_background_guess / tightness
+        light_background_std = 20 * light_background_guess / tightness
 
     if ccd_background_guess is None:
         ccd_background_guess = 0.95 * median_y_bkrd
 
     if ccd_background_std is None:
-        ccd_background_std = 0.2 * ccd_background_guess / tightness
+        ccd_background_std = 0.05 * ccd_background_guess / tightness
 
     if ccd_stdev_guess is None:
         ccd_stdev_guess = 10
 
     if ccd_stdev_std is None:
-        ccd_stdev_std = 2 / tightness
+        ccd_stdev_std = 4 / tightness
 
 
     # Order of parameters is amp1, amp2, C0, center2, width1, width2,
@@ -216,9 +216,9 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 20,
             ccd_background_std, ccd_stdev_std),
         nwalkers)
 
-def mc_likelihood_sampler(data, calib_pos, nwalkers = 64, starting_positions = None, 
-                          run = True, nsteps = 1000, threads = 1, safe_ll = False, 
-                          tightness = 10):
+def mc_likelihood_sampler(data, calib_pos, nwalkers = 96, starting_positions = None, 
+                          run = True, nsteps = 500, threads = 1, safe_ll = False, 
+                          tightness = 1):
     """
     Returns an emcee sampler object based on the supplied data and the
     likelihood from the model.
@@ -310,7 +310,7 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers = 64, starting_positions = N
     sampler.run_mcmc(starting_positions, nsteps)
     return sampler
 
-def parameter_samples_df(sampler, burn_in = 1000, tracelabels = None):
+def parameter_samples_df(sampler, burn_in = 350, tracelabels = None):
     """
     Generate a pandas dataframe from the samples in an emcee object. Useful
     e.g. to run sns.pairplot(parameter_samples, markers='.') to visualize
@@ -331,7 +331,7 @@ def parameter_samples_df(sampler, burn_in = 1000, tracelabels = None):
     traces = samples.reshape(-1, 9).T
     return pd.DataFrame({tracelabels[i] : traces[i] for i in range(9)})
 
-def credible_intervals_from_sampler(sampler, burn_in = 1000, interval_range = 0.68):
+def credible_intervals_from_sampler(sampler, burn_in = 350, interval_range = 0.68):
     """
     Returns credible intervals for the parameters generated from the sampler object.
 
@@ -351,7 +351,7 @@ def credible_intervals_from_sampler(sampler, burn_in = 1000, interval_range = 0.
             q = parameter_samples.quantile([0.50 - y/2, 0.50, 0.50 + y/2], axis=0)
             print("For credibility level " + y + ":")
             for x in parameter_samples.columns:
-                print(str(x) + " = {:.2f} + {:.2f} - {:.2f}".format(q[x][0.50], 
+                print(str(x) + " = {:.4f} + {:.4f} - {:.4f}".format(q[x][0.50], 
                                                     q[x][0.50 + y/2]-q[x][0.50],
                                                     q[x][0.50]-q[x][0.50 - y/2]))
 
@@ -359,7 +359,7 @@ def credible_intervals_from_sampler(sampler, burn_in = 1000, interval_range = 0.
         q = parameter_samples.quantile([0.50 - interval_range/2, 0.50, 
                                         0.50 + interval_range/2], axis=0)
         for x in parameter_samples.columns:
-            print(str(x) + " = {:.2f} + {:.2f} - {:.2f}".format(q[x][0.50], 
+            print(str(x) + " = {:.4f} + {:.4f} - {:.4f}".format(q[x][0.50], 
                                                     q[x][0.50 + interval_range/2]-q[x][0.50],
                                                     q[x][0.50]-q[x][0.50 - interval_range/2]))
     else:
