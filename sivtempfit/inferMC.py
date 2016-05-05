@@ -24,7 +24,7 @@ def log_likelihood_params(theta, x, y, safe_ll=False, gaussian_approx=False):
     return model.two_peak_log_likelihood(x, y, amp1, amp2, 0, 0, C0,
                 center2, width1, width2, light_background, ccd_background,
                 ccd_stdev, conv_range=-1, debug=False, test_norm=False,
-                safe=safe_ll)
+                safe=safe_ll, gaussian_approx=gaussian_approx)
 
 def generate_sample_ball(data, calib_pos_guess, nwalkers=96,
                          amp1_guess=None, amp1_std=None,
