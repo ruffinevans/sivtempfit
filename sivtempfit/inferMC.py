@@ -117,13 +117,19 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers=96,
         x = data[0]
         y = data[1]
 
+    # The math below relies on having the y values in sorted order
+    # I know the syntax here is bad, I'm in a hurry.
+    # Should come back and fix this.
+    # x = [x for (x, y) in sorted(zip(x_unsrt, y_unsrt))]
+    # y = [y for (x, y) in sorted(zip(x_unsrt, y_unsrt))]
+
     # Also get the y value at the middle of the spectrum, close to the peak
-    mid_index = np.floor(len(x) / 2)
+    mid_index = int(np.floor(len(x) / 2))
     y_at_mid = y[mid_index]
 
     # To estimate the background, look at the last 5% of the values and
     # take the median.
-    near_end_index = np.floor(len(x) * 0.95)
+    near_end_index = int(np.floor(len(x) * 0.95))
     median_y_bkrd = np.median(y[near_end_index:])
 
     if width1_guess is None:
@@ -139,7 +145,7 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers=96,
         width2_std = 0.0005 / tightness
 
     if amp1_guess is None:
-        amp1_guess = 1.8 * (y_at_mid - median_y_bkrd) * width1_guess
+        amp1_guess = np.abs(1.8 * (y_at_mid - median_y_bkrd) * width1_guess)
 
     if amp1_std is None:
         amp1_std = 0.02 * amp1_guess / tightness
@@ -358,7 +364,8 @@ def credible_intervals_from_sampler(sampler, burn_in=500, interval_range=0.68,
         if type(interval_range) == list:
             for y in interval_range:
                 q = parameter_samples.quantile([0.50 - y/2, 0.50, 0.50 + y/2], axis=0)
-                print("For credibility level " + y + ":")
+                print()
+                print("For credibility level {:.3f}:".format(y))
                 for x in parameter_samples.columns:
                     print(str(x) + " = {:.4f} + {:.4f} - {:.4f}".format(q[x][0.50],
                                                         q[x][0.50 + y/2]-q[x][0.50],
