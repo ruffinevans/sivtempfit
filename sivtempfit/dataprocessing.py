@@ -3,6 +3,7 @@ import pandas as pd
 from collections import OrderedDict
 import inspect
 import numpy as np
+from . import io
 
 
 class Printable:
@@ -75,3 +76,9 @@ class Spectrum(Printable):
         cols = self.data.columns.tolist()
         reordered = [cols[1]] + [cols[0]]
         self.data = self.data[reordered]
+
+    def add_to_metadata(self, new_dict):
+        """
+        Appends a dict to the existing metadata.
+        """
+        self.metadata = io.merge_dicts(self.metadata, new_dict)

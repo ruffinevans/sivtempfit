@@ -332,37 +332,64 @@ def parameter_samples_df(sampler, burn_in=500, tracelabels=None):
     return pd.DataFrame({tracelabels[i] : traces[i] for i in range(9)})
 
 
-def credible_intervals_from_sampler(sampler, burn_in=500, interval_range=0.68):
+def credible_intervals_from_sampler(sampler, burn_in=500, interval_range=0.68,
+                                    print_out=True):
     """
     Returns credible intervals for the parameters generated from the sampler
-    object.
+    object in the format [[parameters], [upper bounds], [lower bounds]]
 
     Arguments:
     ----------
     sampler : emcee sampler object
+
+    Optional Arguments:
+    -------------------
     burn_in : how many samples to discard (default: 1000)
     interval_range : what level of credibility? (Default: 68\% range).
-                     Can accept a list of multiple levels.
+                     Can accept a list of multiple levels, in which case
+                     a list of lists is returned.
+    print_out : if True, also print the output in a human-readable format.
 
     See also: parameter_samples_df
     """
     parameter_samples = parameter_samples_df(sampler, burn_in)
 
-    if type(interval_range) == list:
-        for y in interval_range:
-            q = parameter_samples.quantile([0.50 - y/2, 0.50, 0.50 + y/2], axis=0)
-            print("For credibility level " + y + ":")
-            for x in parameter_samples.columns:
-                print(str(x) + " = {:.4f} + {:.4f} - {:.4f}".format(q[x][0.50],
-                                                    q[x][0.50 + y/2]-q[x][0.50],
-                                                    q[x][0.50]-q[x][0.50 - y/2]))
+    if print_out:
+        if type(interval_range) == list:
+            for y in interval_range:
+                q = parameter_samples.quantile([0.50 - y/2, 0.50, 0.50 + y/2], axis=0)
+                print("For credibility level " + y + ":")
+                for x in parameter_samples.columns:
+                    print(str(x) + " = {:.4f} + {:.4f} - {:.4f}".format(q[x][0.50],
+                                                        q[x][0.50 + y/2]-q[x][0.50],
+                                                        q[x][0.50]-q[x][0.50 - y/2]))
 
+        elif type(interval_range) == int or type(interval_range) == float:
+            q = parameter_samples.quantile([0.50 - interval_range/2, 0.50,
+                                            0.50 + interval_range/2], axis=0)
+            for x in parameter_samples.columns:
+                print(str(x) + " = {:.4f} + {:.4f} - {:.4f}".format(q[x][0.50], 
+                                                        q[x][0.50 + interval_range/2]-q[x][0.50],
+                                                        q[x][0.50]-q[x][0.50 - interval_range/2]))
+        else:
+            raise ValueError('interval_range must be a number or list of numbers')
+
+    if type(interval_range) == list:
+        all_ranges = [[[0,0,0] for x in parameter_samples.columns]
+                      for y in interval_range]
+        for yindex, y in enumerate(interval_range):
+            q = parameter_samples.quantile([0.50 - y/2, 0.50, 0.50 + y/2], axis=0)
+            for xindex, x in enumerate(parameter_samples.columns):
+                all_ranges[yindex][xindex] = [q[x][0.50],
+                                              q[x][0.50 + y/2]-q[x][0.50],
+                                              q[x][0.50]-q[x][0.50 - y/2]]
+        return all_ranges
     elif type(interval_range) == int or type(interval_range) == float:
         q = parameter_samples.quantile([0.50 - interval_range/2, 0.50,
                                         0.50 + interval_range/2], axis=0)
-        for x in parameter_samples.columns:
-            print(str(x) + " = {:.4f} + {:.4f} - {:.4f}".format(q[x][0.50], 
-                                                    q[x][0.50 + interval_range/2]-q[x][0.50],
-                                                    q[x][0.50]-q[x][0.50 - interval_range/2]))
+        return [[q[x][0.50], 
+                q[x][0.50 + interval_range/2]-q[x][0.50],
+                q[x][0.50]-q[x][0.50 - interval_range/2]]
+                for x in parameter_samples.columns]
     else:
         raise ValueError('interval_range must be a number or list of numbers')
