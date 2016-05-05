@@ -3,28 +3,19 @@
 # module is just repackaging the likelihood functions in model.py into a
 # version that can be easily passed to the sampler.
 
-# Things to do:
-# 1. Write function that generates guess balls
-# 2. Write function that does emcee sampling given data. This is mostly a
-#    matter of translating the model function to the form that emcee wants.
-#    Eventually, will want to put in a prior as well, so leave space for that.
-# 3. Write function that, given data and guesses, generates guess balls
-#    and then does sampling. Resist the temptation to make this too automatic.
-#    It is not a good use of your time.
-
 import emcee
 from . import model
 from .dataprocessing import Spectrum
 import numpy as np
-import warnings
 import pandas as pd
 
+
 # Define the log_likelihood in the form that the emcee sampler wants it.
-# We will define this here so that it can be pickled, which is necessary for 
+# We will define this here so that it can be pickled, which is necessary for
 # parallel evaluation.
 # For an explanation, see the documentation here:
 # https://docs.python.org/2/library/pickle.html#what-can-be-pickled-and-unpickled
-def log_likelihood_params(theta, x, y, safe_ll = False):
+def log_likelihood_params(theta, x, y, safe_ll=False, gaussian_approx=False):
     # Theta is the list of parameters. We are only interested in a single
     # spectrum here, so we do not include T or m in our sampling
     amp1, amp2, C0, center2, width1, width2, light_background, \
@@ -32,20 +23,20 @@ def log_likelihood_params(theta, x, y, safe_ll = False):
 
     return model.two_peak_log_likelihood(x, y, amp1, amp2, 0, 0, C0,
                 center2, width1, width2, light_background, ccd_background,
-                ccd_stdev, conv_range = -1, debug = False, test_norm = False,
-                safe = safe_ll)
+                ccd_stdev, conv_range=-1, debug=False, test_norm=False,
+                safe=safe_ll)
 
-def generate_sample_ball(data, calib_pos_guess, nwalkers = 96,
-                         amp1_guess = None, amp1_std = None,
-                         amp2_guess = None, amp2_std = None,
-                         center_offset_guess = None, center_offset_std = None,
-                         calib_pos_std = None,
-                         width1_guess = None, width1_std = None,
-                         width2_guess = None, width2_std = None,
-                         light_background_guess = None, light_background_std = None,
-                         ccd_background_guess = None, ccd_background_std = None,
-                         ccd_stdev_guess = None, ccd_stdev_std = None,
-                         debug = False, return_y_values = False, tightness = 1):
+def generate_sample_ball(data, calib_pos_guess, nwalkers=96,
+                         amp1_guess=None, amp1_std=None,
+                         amp2_guess=None, amp2_std=None,
+                         center_offset_guess=None, center_offset_std=None,
+                         calib_pos_std=None,
+                         width1_guess=None, width1_std=None,
+                         width2_guess=None, width2_std=None,
+                         light_background_guess=None, light_background_std=None,
+                         ccd_background_guess=None, ccd_background_std=None,
+                         ccd_stdev_guess=None, ccd_stdev_std=None,
+                         debug=False, return_y_values=False, tightness=1):
     """
     Creates an emcee sample ball to use as the starting position for the emcee
     sampler.
@@ -69,7 +60,7 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 96,
                           to the second
     center_offset_std
     calib_pos_std : Standard deviation for the guess of the calibration peak
-                    position. Note that the calib_pos_guess argument is 
+                    position. Note that the calib_pos_guess argument is
                     mandatory.
     width1_guess : Guess for the width of the first peak
     width1_std
@@ -89,7 +80,7 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 96,
                       center of the sample ball. Overrides the debug command.
                       Very useful for plotting against the data to see if it
                       approximately agrees.
-    tightness : scaling factor for the _std variables. A higher tightness 
+    tightness : scaling factor for the _std variables. A higher tightness
                 means a more localized sample_ball.
 
 
@@ -127,13 +118,13 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 96,
         y = data[1]
 
     # Also get the y value at the middle of the spectrum, close to the peak
-    mid_index = np.floor(len(x)/2)
+    mid_index = np.floor(len(x) / 2)
     y_at_mid = y[mid_index]
 
     # To estimate the background, look at the last 5% of the values and
     # take the median.
-    near_end_index = np.floor(len(x)*0.95)
-    median_y_bkrd = np.median(y[near_end_index : ])
+    near_end_index = np.floor(len(x) * 0.95)
+    median_y_bkrd = np.median(y[near_end_index:])
 
     if width1_guess is None:
         width1_guess = 7.2
@@ -148,13 +139,13 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 96,
         width2_std = 0.0005 / tightness
 
     if amp1_guess is None:
-        amp1_guess = 1.8*(y_at_mid - median_y_bkrd) * width1_guess
+        amp1_guess = 1.8 * (y_at_mid - median_y_bkrd) * width1_guess
 
     if amp1_std is None:
         amp1_std = 0.02 * amp1_guess / tightness
 
     if amp2_guess is None:
-        amp2_guess = 1.5*(np.max(y) - median_y_bkrd) * width2_guess
+        amp2_guess = 1.5 * (np.max(y) - median_y_bkrd) * width2_guess
 
     if amp2_std is None:
         amp2_std = 0.02 * amp2_guess / tightness
@@ -216,9 +207,11 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers = 96,
             ccd_background_std, ccd_stdev_std),
         nwalkers)
 
-def mc_likelihood_sampler(data, calib_pos, nwalkers = 96, starting_positions = None, 
-                          run = True, nsteps = 500, threads = 1, safe_ll = False, 
-                          tightness = 1):
+
+def mc_likelihood_sampler(data, calib_pos, nwalkers=96,
+                          starting_positions=None, run=True, nsteps=500,
+                          threads=1, safe_ll=False, tightness=1,
+                          gaussian_approx=False):
     """
     Returns an emcee sampler object based on the supplied data and the
     likelihood from the model.
@@ -246,6 +239,11 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers = 96, starting_positions = N
                sample_ball. For more control, see the generate_sample_ball
                function. If such a sample ball is passed as starting_positions,
                the tightness argument is ignored.
+    gaussian_approx: Use a gaussian approximation for the poisson distribution
+                     in the log-likelihood.
+                     This allows the calculation to be sped up by several
+                     orders of magnitude and is a good approximation as long
+                     as the relevant signal is greater than about ten counts.
 
     Note:
     -----
@@ -278,8 +276,8 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers = 96, starting_positions = N
 
         return model.two_peak_log_likelihood(x, y, amp1, amp2, 0, 0, C0,
                     center2, width1, width2, light_background, ccd_background,
-                    ccd_stdev, conv_range = -1, debug = False, test_norm = False,
-                    safe = safe_ll)
+                    ccd_stdev, conv_range=-1, debug=False, test_norm=False,
+                    safe=safe_ll, gaussian_approx=gaussian_approx)
 
     # Here, we have 9 dimensions
     ndim = 9
@@ -287,20 +285,21 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers = 96, starting_positions = N
     if starting_positions is None:
         # Call above function to get starting positions
         starting_positions = generate_sample_ball(data, calib_pos, nwalkers,
-                                                  tightness = tightness)
+                                                  tightness=tightness)
 
     if not(isinstance(threads, int)):
         raise ValueError('Threads must be a positive integer.')
 
     if threads == 1:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood, threads = 1)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood, threads=1)
     elif threads >= 1:
         # I'm pretty sure this works fine now, so removing the warning:
-        # warnings.warn("Multithreaded emcee is the context of the sivtempfit "+
+        # warnings.warn("Multithreaded emcee in the context of the sivtempfit "+
         #               "package is not thoroughly tested. Use at your own risk!",
         #               RuntimeWarning)
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood_params,
-                                        args = [x, y, safe_ll], threads = threads)
+                                        args=[x, y, safe_ll, gaussian_approx],
+                                        threads=threads)
     else:
         raise ValueError('Threads must be a positive integer.')
 
@@ -310,7 +309,8 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers = 96, starting_positions = N
     sampler.run_mcmc(starting_positions, nsteps)
     return sampler
 
-def parameter_samples_df(sampler, burn_in = 350, tracelabels = None):
+
+def parameter_samples_df(sampler, burn_in=500, tracelabels=None):
     """
     Generate a pandas dataframe from the samples in an emcee object. Useful
     e.g. to run sns.pairplot(parameter_samples, markers='.') to visualize
@@ -331,9 +331,11 @@ def parameter_samples_df(sampler, burn_in = 350, tracelabels = None):
     traces = samples.reshape(-1, 9).T
     return pd.DataFrame({tracelabels[i] : traces[i] for i in range(9)})
 
-def credible_intervals_from_sampler(sampler, burn_in = 350, interval_range = 0.68):
+
+def credible_intervals_from_sampler(sampler, burn_in=500, interval_range=0.68):
     """
-    Returns credible intervals for the parameters generated from the sampler object.
+    Returns credible intervals for the parameters generated from the sampler
+    object.
 
     Arguments:
     ----------
@@ -351,16 +353,16 @@ def credible_intervals_from_sampler(sampler, burn_in = 350, interval_range = 0.6
             q = parameter_samples.quantile([0.50 - y/2, 0.50, 0.50 + y/2], axis=0)
             print("For credibility level " + y + ":")
             for x in parameter_samples.columns:
-                print(str(x) + " = {:.4f} + {:.4f} - {:.4f}".format(q[x][0.50], 
+                print(str(x) + " = {:.4f} + {:.4f} - {:.4f}".format(q[x][0.50],
                                                     q[x][0.50 + y/2]-q[x][0.50],
                                                     q[x][0.50]-q[x][0.50 - y/2]))
 
     elif type(interval_range) == int or type(interval_range) == float:
-        q = parameter_samples.quantile([0.50 - interval_range/2, 0.50, 
+        q = parameter_samples.quantile([0.50 - interval_range/2, 0.50,
                                         0.50 + interval_range/2], axis=0)
         for x in parameter_samples.columns:
             print(str(x) + " = {:.4f} + {:.4f} - {:.4f}".format(q[x][0.50], 
                                                     q[x][0.50 + interval_range/2]-q[x][0.50],
                                                     q[x][0.50]-q[x][0.50 - interval_range/2]))
     else:
-        raise ValueError('interval_range must be a number or a list of numbers')
+        raise ValueError('interval_range must be a number or list of numbers')
