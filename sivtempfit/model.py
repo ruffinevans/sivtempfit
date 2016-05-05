@@ -16,13 +16,10 @@ def two_peak_model(x, amp1, amp2, center_offset, center2,
     """
     Model for the data: two lorentzian peaks with variable amplitudes, widths,
     and center positions.
-
     The center positions are encoded as a position of a calibration peak
     (center2) as well as an offset such that the position of the first peak
     is just center_offset + center2.
-
     The lorentzians are defined by the lorentz function.
-
     For a full explanation, see the model-development.ipynb notebook.
     """
 
@@ -34,11 +31,11 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
                             width1, width2, light_background,
                             ccd_background, ccd_stdev,
                             conv_range = -1, debug = False,
-                            test_norm = False, safe = False):
+                            test_norm = False, safe = False,
+                            gaussian_approx = False):
     """
     Returns the log-likelihood calculated for the two-peak + CCD noise model.
     See also: two_peak_model
-
     Parameters:
     -----------
     x : wavelength or x-axis value
@@ -59,6 +56,10 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
 
     Optional Arguments:
     -------------------
+    gaussian_approx: Use a gaussian approximation for the poisson distribution.
+                     This allows the calculation to be sped up by several
+                     orders of magnitude and is a good approximation as long
+                     as the relevant signal is greater than about ten counts.
     conv_range : How many sigmas of the poisson distribution to go out to in
                  the convolution. For example, if there are 1000 photons in a
                  bin, the convolution is centered around 1000 and goes out to
@@ -103,6 +104,19 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
     if (np.min(y_two_peak_model) <= 0 or ccd_background < 0
         or light_background < 0) and not(debug):
         return -np.inf
+
+    # If the gaussian approximation is being used, calculating the likelihood
+    # is exceedingly simple, so just do it here and skip the rest of the stuff.
+    # In my benchmarking, calculating this by hand is actually faster than 
+    # using scipy.stats.
+    if gaussian_approx:
+        # Standard deviation is sum of variances.
+        # For poisson term, variance is mean, and mean is the model.
+        total_var = ccd_stdev**2 + y_two_peak_model
+        likelihood_list = ((1 / (np.sqrt(2.0 * np.pi * total_var))) *
+                         np.exp(-1.0 * (y - y_two_peak_model - ccd_background)**2 /
+                                (2.0 * total_var)))
+        return np.sum(np.log(likelihood_list))
 
     # If safe is True, then do the naive convolution over the entire range
     # of the data. This is time consuming, but should work no matter what.
@@ -260,11 +274,11 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
 
 def two_peak_log_likelihood_Spectrum(spectrum, amp1, amp2, T, m, C0, center2,
         width1, width2, light_background, ccd_background, ccd_stdev,
-        conv_range = -1, debug = False, test_norm = False, safe = False):
+        conv_range = -1, debug = False, test_norm = False, safe = False,
+        gaussian_approx = False):
     """
     Returns the log-likelihood calculated for the two-peak + CCD noise model.
     See also: two_peak_model
-
     Parameters:
     -----------
     spectrum : data passed as an instance of Spectrum class
@@ -284,6 +298,10 @@ def two_peak_log_likelihood_Spectrum(spectrum, amp1, amp2, T, m, C0, center2,
 
     Optional Arguments:
     -------------------
+    gaussian_approx: Use a gaussian approximation for the poisson distribution.
+                 This allows the calculation to be sped up by several
+                 orders of magnitude and is a good approximation as long
+                 as the relevant signal is greater than about ten counts.
     conv_range : How far out to go in convolution. Default is -1, which
                  goes out to max([max(y), max(model_prediction)]) plus
                  3 * sqrt of this max.
@@ -304,4 +322,4 @@ def two_peak_log_likelihood_Spectrum(spectrum, amp1, amp2, T, m, C0, center2,
     y = spectrum.data.values.T[0]
     return two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2, width1, 
              width2, light_background, ccd_background, ccd_stdev, conv_range
-             , debug, test_norm, safe)
+             , debug, test_norm, safe, gaussian_approx)
