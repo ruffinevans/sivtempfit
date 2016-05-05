@@ -28,7 +28,7 @@ If you'd like to delve a little deeper into the model specification, there is al
 
 `model-development.ipynb` describes the model and how it is implemented.
 
-`model-testing.ipynb` shows how to use the package to do inference and performs some simple inference on simulated data to make sure the model works as intended.
+`model-testing.ipynb` shows how to use the package to calculate the likelihood (which you almost always just want to do automatically with the `emcee` sampler as in the tutorial). It also does some very simple inference and tests to make sure the likelihood returns reasonable values.
 
 ## Modules and package structure
 
