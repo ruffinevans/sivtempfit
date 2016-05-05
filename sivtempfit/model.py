@@ -162,12 +162,12 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
             conv_max = conv_range
         else:
             raise ValueError('Range for convolution must be positive')
-        
+
         conv_list = np.arange(conv_min, conv_max)[:, np.newaxis]
         # Construct the convolution matrix by broadcasting
         # Probably there is a faster way to do this.
         conv_mat = conv_list + 0*y
-        
+
         # Construct poisson term
         poisson_term = stats.poisson._pmf(conv_mat, y_two_peak_model)
         # Construct gaussian term
