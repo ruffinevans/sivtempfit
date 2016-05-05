@@ -2,14 +2,13 @@
 # format and also adds metadata at the same time. This covers a large section
 # of the io module that was not previously covered.
 #
-# Then it does some fast emcee-based inference and compares it to some 
+# Then it does some fast emcee-based inference and compares it to some
 # well-studied results.
 
 from unittest import TestCase
 import numpy as np
 from .. import io
 from .. import inferMC as mc
-from .. import model
 
 
 class TestEmceeAndHoriba(TestCase):
@@ -18,9 +17,9 @@ class TestEmceeAndHoriba(TestCase):
     path_to_data = io.get_example_data_file_path("varying acquisition time horiba.txt")
     # Add example times as metadata:
     times = [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 10, 10]
-    times_dict = [{"Acquisition Time" : i} for i in times]
+    times_dict = [{"Acquisition Time": i} for i in times]
     # import spectra, add both data and metadata
-    spectra = io.import_horiba_multi(path_to_data, {"Purpose" : "Test"}, times_dict)
+    spectra = io.import_horiba_multi(path_to_data, {"Purpose": "Test"}, times_dict)
 
     def horiba_data_loading_test(self):
         # Test to make sure the spectra have been loaded with metadata
@@ -34,7 +33,7 @@ class TestEmceeAndHoriba(TestCase):
         calib_pos = self.spectra[0].data['xdata'][max_y_point]
         sampler500 = mc.mc_likelihood_sampler(self.spectra[0], calib_pos,
                                               nwalkers=100, nsteps=1000,
-                                              threads=2, gaussian_approx=True)
+                                              threads=1, gaussian_approx=True)
         intervals = np.array(mc.credible_intervals_from_sampler(sampler500))
         good_intervals = np.array([[2569.347335, 40.92276413, 48.62664087],
                                    [87.33231019, 1.034235807, 1.212639393],
@@ -45,9 +44,9 @@ class TestEmceeAndHoriba(TestCase):
                                    [83.02959825, 20.23707837, 60.39641023],
                                    [7.195214738, 0.097707853, 0.093495717],
                                    [0.011431565, 0.000163831, 0.000176602]])
-        parameter_errors = ((intervals.T[0] - good_intervals.T[0]) / 
-                                good_intervals.T[0])
-        print("Here are the list of errors between the known \"good\""+
+        parameter_errors = ((intervals.T[0] - good_intervals.T[0]) /
+                            good_intervals.T[0])
+        print("Here are the list of errors between the known \"good\"" +
               " inference and the inference performed during during testing:")
         print(parameter_errors)
         print("Median absolute fractional error:")
