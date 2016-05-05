@@ -16,7 +16,7 @@ The package is designed to do simultaneous fitting of two peaks (an experimental
 
 Simply download the package and run `python setup.py install` within the package directory.
 
-To test that the package is performing as intended, you can run the `nosetests` command (or `python setup.py test`). These tests will test some basic functionality of the package, including performing some simple inference on some test data. This inference should only take a small amount of time, probably less than thirty seconds on your machine. However, **please be patient** while these tests run.
+To test that the package is performing as intended, you can run the `nosetests` command (or `python setup.py test`). These tests will test some basic functionality of the package, including performing some simple MC-based inference on some test data. This inference should only take a small amount of time, probably less than a minute on your machine. However, **please be patient** while these tests run.
 
 ## Documentation
 
