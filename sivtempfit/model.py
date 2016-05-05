@@ -320,6 +320,6 @@ def two_peak_log_likelihood_Spectrum(spectrum, amp1, amp2, T, m, C0, center2,
     """
     x = spectrum.data.values.T[1]
     y = spectrum.data.values.T[0]
-    return two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2, width1, 
-             width2, light_background, ccd_background, ccd_stdev, conv_range
-             , debug, test_norm, safe, gaussian_approx)
+    return two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2, width1,
+               width2, light_background, ccd_background, ccd_stdev, conv_range,
+               debug, test_norm, safe, gaussian_approx)
