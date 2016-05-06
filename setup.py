@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='sivtempfit',
-      version='0.1',
+      version='0.9',
       description='Bayesian analysis of SiV spectra for temperature fitting',
       url='https://github.com/p201-sp2016/SiVTempFit-RE',
       author='Ruffin Evans',
