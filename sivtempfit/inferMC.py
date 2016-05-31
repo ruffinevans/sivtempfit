@@ -340,7 +340,7 @@ def parameter_samples_df(sampler, burn_in=500, tracelabels=None):
 
 
 def credible_intervals_from_sampler(sampler, burn_in=500, interval_range=0.68,
-                                    print_out=True):
+                                    print_out=True, tracelabels=None):
     """
     Returns credible intervals for the parameters generated from the sampler
     object in the format [[parameters], [upper bounds], [lower bounds]]
@@ -356,10 +356,16 @@ def credible_intervals_from_sampler(sampler, burn_in=500, interval_range=0.68,
                      Can accept a list of multiple levels, in which case
                      a list of lists is returned.
     print_out : if True, also print the output in a human-readable format.
+    tracelables : A list containing labels for the different parameters.
+                  Not necessary if you are optimizing over the typical set
+                  of nine parameters.
+                  (For this function, the only important thing about this
+                  list is that it contains the correct number of elements.
+                  The labels can be anything.)
 
     See also: parameter_samples_df
     """
-    parameter_samples = parameter_samples_df(sampler, burn_in)
+    parameter_samples = parameter_samples_df(sampler, burn_in, tracelabels=tracelabels)
 
     if print_out:
         if type(interval_range) == list:
