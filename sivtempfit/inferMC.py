@@ -328,14 +328,15 @@ def parameter_samples_df(sampler, burn_in=500, tracelabels=None):
 
     Discards the first burn_in samples from the sampler.
     """
-    if tracelabels == None:
+    if tracelabels is None:
         tracelabels = ['A1', 'A2', 'C0', 'C2', 'w1', 'w2', 'lb', 'cb', 'cs']
 
     if burn_in > sampler.chain.shape[1]:
         raise ValueError('burn_in should be less than the chain length!')
     samples = sampler.chain[:, burn_in:, :]
-    traces = samples.reshape(-1, 9).T
-    return pd.DataFrame({tracelabels[i] : traces[i] for i in range(9)})
+    traces = samples.reshape(-1, len(tracelabels)).T
+    return pd.DataFrame({tracelabels[i]: traces[i]
+                         for i in range(len(tracelabels))})
 
 
 def credible_intervals_from_sampler(sampler, burn_in=500, interval_range=0.68,

@@ -2,13 +2,15 @@ import numpy as np
 import scipy.stats as stats
 import warnings
 
+
 def lorentz(x, center, width):
     """
     A lorentzian function with peak position 'center' and FWHM 'width'.
     Returns non-negative values only.
     """
 
-    return np.fabs((1 / np.pi) * (width / 2) / ((x - center)**2 + (width / 2)**2))
+    return np.fabs((1 / np.pi) * (width / 2) /
+                   ((x - center)**2 + (width / 2)**2))
 
 
 def two_peak_model(x, amp1, amp2, center_offset, center2,
@@ -253,8 +255,8 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
     # y values, which can generate a low likelihood just for the gaussian
     # term.
     if test_norm:
-        warnings.warn("Testing for normalization is no longer meaningful. "+
-                      "If you are trying to extract information this way, "+
+        warnings.warn("Testing for normalization is no longer meaningful. " +
+                      "If you are trying to extract information this way, " +
                       "you may be disappointed.")
         gauss_norm = all(np.sum(gaussian_term.T, axis = 1) > 0.99)
         poiss_norm = all(np.sum(poisson_term.T, axis = 1) > 0.99)

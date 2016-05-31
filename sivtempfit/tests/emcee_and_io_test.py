@@ -8,7 +8,7 @@
 from unittest import TestCase
 import numpy as np
 from .. import io
-from .. import inferMC as mc
+from .. import inferMC as mc 
 
 
 class TestEmceeAndHoriba(TestCase):
