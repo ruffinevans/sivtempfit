@@ -10,7 +10,12 @@ Example data provided by Christian Nguyen with contributions from the rest of th
 ## Description
 This package is designed to analyze fluorescence spectra from SiV centers in diamond by performing Bayesian parameter estimation. The emphasis is on ease-of-use and producing reliable estimates of the fluorescence wavelength and associated uncertainty.
 
-The package is designed to do simultaneous fitting of two peaks (an experimental peak and a reference/calibration peak) to reduce uncertainty in the wavelength.
+The package is designed to fit one of two possible models to the data: 
+
+1. A model containing a single Lorentzian peak describing the SiV center fluorescence
+2. A model containing two Lorentzian peaks an experimental peak and a reference/calibration peak.
+
+Although the second model is more complicated, it allows an absolute frequency calibration with every spectrum, removing several sources of possible systematic error.
 
 ## Installation and testing
 
@@ -49,6 +54,8 @@ If you'd like to delve a little deeper into the model specification, there is al
 There are a few planned improvements.
 
 1. Inclusion of various options to specify the priors on each parameter. Currently, the package only supports sampling over the likelihood and is therefore implicitly choosing improper uniform priors if the output is interpreted as a posterior.
+
+2. MC with parallel tempering to improve convergence and reduce the need for fine-tuning of the guesses before fitting.
 
 ## Copyright and license information
 
