@@ -15,7 +15,7 @@ import pandas as pd
 # parallel evaluation.
 # For an explanation, see the documentation here:
 # https://docs.python.org/2/library/pickle.html#what-can-be-pickled-and-unpickled
-def log_likelihood_params(theta, x, y, safe_ll=False, gaussian_approx=False):
+def log_likelihood_params_2(theta, x, y, safe_ll=False, gaussian_approx=False):
     # Theta is the list of parameters. We are only interested in a single
     # spectrum here, so we do not include T or m in our sampling
     amp1, amp2, C0, center2, width1, width2, light_background, \
@@ -26,7 +26,20 @@ def log_likelihood_params(theta, x, y, safe_ll=False, gaussian_approx=False):
                 ccd_stdev, conv_range=-1, debug=False, test_norm=False,
                 safe=safe_ll, gaussian_approx=gaussian_approx)
 
-def generate_sample_ball(data, calib_pos_guess, nwalkers=96,
+
+def log_likelihood_params_1(theta, x, y, safe_ll=False, gaussian_approx=False):
+    # Theta is the list of parameters. We are only interested in a single
+    # spectrum here, so we do not include T or m in our sampling
+    amp, center, width, light_bakcground, ccd_background, \
+        ccd_stdev = theta
+
+    return model.one_peak_log_likelihood(x, y, amp, 0, 0, center,
+                width, light_background, ccd_background, ccd_stdev,
+                conv_range=-1, debug=False, test_norm=False,
+                safe=safe_ll, gaussian_approx=gaussian_approx)
+
+
+def generate_sample_ball(data, calib_pos_guess, num_peaks, nwalkers=96,
                          amp1_guess=None, amp1_std=None,
                          amp2_guess=None, amp2_std=None,
                          center_offset_guess=None, center_offset_std=None,
@@ -45,7 +58,11 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers=96,
     ----------
     data : input data that will be passed to the emcee sampler elsewhere
     calib_pos_guess : the position of the (sharp) calibration line
-                      in the spectrum
+                      in the spectrum. Irrelevant if the number of peaks
+                      is one.
+    num_peaks : the number of peaks in the spectrum (1 or 2). This deterimes
+                whether or not the sample ball for the single peak or the
+                two-peak model is returned.
 
     Optional Arguments:
     -------------------
@@ -108,6 +125,8 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers=96,
 
     For the ccd standard deviation, we will used a fixed estimate of 10.
     """
+    if not(num_peaks == 1 or num_peaks == 2):
+        raise ValueError("The number of peaks in the model must be 1 or 2.")
 
     # Assumes spectrum is unpacked in reverse order.
     if isinstance(data, Spectrum):
@@ -157,7 +176,11 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers=96,
         amp2_std = 0.02 * amp2_guess / tightness
 
     if center_offset_guess is None:
-        center_offset_guess = 740 - calib_pos_guess
+        if num_peaks == 2:
+            center_offset_guess = 740 - calib_pos_guess
+        else:
+            # In this case, the center offset is the actual center position
+            center_offset_guess = 739
 
     if center_offset_std is None:
         center_offset_std = 0.015 / tightness
@@ -183,38 +206,51 @@ def generate_sample_ball(data, calib_pos_guess, nwalkers=96,
     if ccd_stdev_std is None:
         ccd_stdev_std = 4 / tightness
 
-
     # Order of parameters is amp1, amp2, C0, center2, width1, width2,
     # light_background, ccd_background, ccd_stdev
     if return_y_values:
         # In this case, returns the model prediction for the center of the
         # sample_ball object. Useful for making plots to compare prediction
         # to data.
-        return model.two_peak_model(x, amp1_guess, amp2_guess, 
-                                    center_offset_guess, calib_pos_guess,
-                                    width1_guess, width2_guess,
-                                    light_background_guess) \
-                                    + ccd_background_guess
+        if num_peaks == 2:
+            return model.two_peak_model(x, amp1_guess, amp2_guess,
+                                        center_offset_guess, calib_pos_guess,
+                                        width1_guess, width2_guess,
+                                        light_background_guess) \
+                + ccd_background_guess
+        else:
+            return model.one_peak_model(x, amp1_guess, center_offset_guess,
+                                        width1_guess, light_background_guess) \
+                + ccd_background_guess
 
     if debug:
+        # For debug case, OK to return everything regardless of whether we have
+        # one or two peaks.
         return ((amp1_guess, amp2_guess, center_offset_guess, calib_pos_guess,
+                 width1_guess, width2_guess, light_background_guess,
+                 ccd_background_guess, ccd_stdev_guess),
+                (amp1_std, amp2_std, center_offset_std, calib_pos_std,
+                 width1_std, width2_std, light_background_std,
+                 ccd_background_std, ccd_stdev_std))
+
+    if num_peaks == 2:
+        return emcee.utils.sample_ball(
+            (amp1_guess, amp2_guess, center_offset_guess, calib_pos_guess,
                 width1_guess, width2_guess, light_background_guess,
                 ccd_background_guess, ccd_stdev_guess),
             (amp1_std, amp2_std, center_offset_std, calib_pos_std,
                 width1_std, width2_std, light_background_std,
-                ccd_background_std, ccd_stdev_std))
-
-    return emcee.utils.sample_ball(
-        (amp1_guess, amp2_guess, center_offset_guess, calib_pos_guess,
-            width1_guess, width2_guess, light_background_guess,
-            ccd_background_guess, ccd_stdev_guess),
-        (amp1_std, amp2_std, center_offset_std, calib_pos_std,
-            width1_std, width2_std, light_background_std,
-            ccd_background_std, ccd_stdev_std),
-        nwalkers)
+                ccd_background_std, ccd_stdev_std),
+            nwalkers)
+    else:
+        return emcee.utils.sample_ball(
+            (amp1_guess, center_offset_guess, width1_guess,
+                light_background_guess, ccd_background_guess, ccd_stdev_guess),
+            (amp1_std, center_offset_std, width1_std,
+                light_background_std, ccd_background_std, ccd_stdev_std))
 
 
-def mc_likelihood_sampler(data, calib_pos, nwalkers=96,
+def mc_likelihood_sampler(data, calib_pos, num_peaks, nwalkers=96,
                           starting_positions=None, run=True, nsteps=500,
                           threads=1, safe_ll=False, tightness=1,
                           gaussian_approx=False):
@@ -226,6 +262,10 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers=96,
     ----------
     data: either a list [x, y] of the x and y data or a Spectrum object.
     calib_pos: approximate position of the calibration line in the data.
+    num_peaks : the number of peaks in the spectrum (1 or 2). This determines
+                which model is fit to the data. If two peaks are selected, the
+                model with the calibration line is fit. If one peak is
+                selected, the model with just a single lorentzian is fit.
 
     Optional Arguments:
     -------------------
@@ -260,6 +300,10 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers=96,
     For more information on emcee, see the documentation:
     http://dan.iel.fm/emcee/current/
     """
+
+    if not(num_peaks == 1 or num_peaks == 2):
+        raise ValueError("The number of peaks in the model must be 1 or 2.")
+
     # Check to see if a spectrum object is passed. If so, use the data in the
     # Spectrum object. Otherwise, assume the user has passed a list of x/y
     # pairs.
@@ -274,24 +318,38 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers=96,
         y = data[1]
 
     # Define the log_likelihood in the form that the emcee sampler wants it.
-    def log_likelihood(theta):
-        # Theta is the list of parameters. We are only interested in a single
-        # spectrum here, so we do not include T or m in our sampling
-        amp1, amp2, C0, center2, width1, width2, light_background, \
-            ccd_background, ccd_stdev = theta
+    if num_peaks == 2:
+        def log_likelihood(theta):
+            # Theta is the list of parameters. We are only interested in a single
+            # spectrum here, so we do not include T or m in our sampling
+            amp1, amp2, C0, center2, width1, width2, light_background, \
+                ccd_background, ccd_stdev = theta
 
-        return model.two_peak_log_likelihood(x, y, amp1, amp2, 0, 0, C0,
-                    center2, width1, width2, light_background, ccd_background,
-                    ccd_stdev, conv_range=-1, debug=False, test_norm=False,
-                    safe=safe_ll, gaussian_approx=gaussian_approx)
+            return model.two_peak_log_likelihood(x, y, amp1, amp2, 0, 0, C0,
+                        center2, width1, width2, light_background, ccd_background,
+                        ccd_stdev, conv_range=-1, debug=False, test_norm=False,
+                        safe=safe_ll, gaussian_approx=gaussian_approx)
+    else:
+        def log_likelihood(theta):
+            amp, center, width, light_bakcground, ccd_background, \
+                ccd_stdev = theta
 
-    # Here, we have 9 dimensions
-    ndim = 9
+            return model.one_peak_log_likelihood(x, y, amp, 0, 0, center,
+                        width, light_background, ccd_background, ccd_stdev,
+                        conv_range=-1, debug=False, test_norm=False,
+                        safe=safe_ll, gaussian_approx=gaussian_approx)
+
+    if num_peaks == 2:
+        # Here, we have 9 dimensions
+        ndim = 9
+    else:
+        # In this case, we have only six
+        ndim = 6
 
     if starting_positions is None:
         # Call above function to get starting positions
-        starting_positions = generate_sample_ball(data, calib_pos, nwalkers,
-                                                  tightness=tightness)
+        starting_positions = generate_sample_ball(data, calib_pos, num_peaks,
+                                                  nwalkers, tightness=tightness)
 
     if not(isinstance(threads, int)):
         raise ValueError('Threads must be a positive integer.')
@@ -303,9 +361,14 @@ def mc_likelihood_sampler(data, calib_pos, nwalkers=96,
         # warnings.warn("Multithreaded emcee in the context of the sivtempfit "+
         #               "package is not thoroughly tested. Use at your own risk!",
         #               RuntimeWarning)
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood_params,
-                                        args=[x, y, safe_ll, gaussian_approx],
-                                        threads=threads)
+        if num_peaks == 2:
+            sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood_params_2,
+                                            args=[x, y, safe_ll, gaussian_approx],
+                                            threads=threads)
+        else:
+            sampler = emcee.EnsembleSampler(nwalkers, ndim, log_likelihood_params_1,
+                                            args=[x, y, safe_ll, gaussian_approx],
+                                            threads=threads)
     else:
         raise ValueError('Threads must be a positive integer.')
 
@@ -389,21 +452,21 @@ def credible_intervals_from_sampler(sampler, burn_in=500, interval_range=0.68,
             raise ValueError('interval_range must be a number or list of numbers')
 
     if type(interval_range) == list:
-        all_ranges = [[[0,0,0] for x in parameter_samples.columns]
+        all_ranges = [[[0, 0, 0] for x in parameter_samples.columns]
                       for y in interval_range]
         for yindex, y in enumerate(interval_range):
-            q = parameter_samples.quantile([0.50 - y/2, 0.50, 0.50 + y/2], axis=0)
+            q = parameter_samples.quantile([0.50 - y / 2, 0.50, 0.50 + y / 2], axis=0)
             for xindex, x in enumerate(parameter_samples.columns):
                 all_ranges[yindex][xindex] = [q[x][0.50],
-                                              q[x][0.50 + y/2]-q[x][0.50],
-                                              q[x][0.50]-q[x][0.50 - y/2]]
+                                              q[x][0.50 + y / 2] - q[x][0.50],
+                                              q[x][0.50] - q[x][0.50 - y / 2]]
         return all_ranges
     elif type(interval_range) == int or type(interval_range) == float:
-        q = parameter_samples.quantile([0.50 - interval_range/2, 0.50,
-                                        0.50 + interval_range/2], axis=0)
-        return [[q[x][0.50], 
-                q[x][0.50 + interval_range/2]-q[x][0.50],
-                q[x][0.50]-q[x][0.50 - interval_range/2]]
+        q = parameter_samples.quantile([0.50 - interval_range / 2, 0.50,
+                                        0.50 + interval_range / 2], axis=0)
+        return [[q[x][0.50],
+                 q[x][0.50 + interval_range / 2] - q[x][0.50],
+                 q[x][0.50] - q[x][0.50 - interval_range / 2]]
                 for x in parameter_samples.columns]
     else:
         raise ValueError('interval_range must be a number or list of numbers')

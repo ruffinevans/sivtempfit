@@ -12,6 +12,16 @@ def lorentz(x, center, width):
     return np.fabs((1 / np.pi) * (width / 2) /
                    ((x - center)**2 + (width / 2)**2))
 
+def one_peak_model(x, amp, center, width, background):
+    """
+    Model for the data: a single lorentzian peak with variable amplitude,
+    center position, width, plus a constant background.
+    The lorentzian is defined by the lorentz function.
+    For a full explanation, see the model-development.ipynb notebook.
+    """
+
+    return (background +
+            amp * lorentz(x, center, width))
 
 def two_peak_model(x, amp1, amp2, center_offset, center2,
                    width1, width2, background):
@@ -28,6 +38,74 @@ def two_peak_model(x, amp1, amp2, center_offset, center2,
     return (background +
             amp1 * lorentz(x, center_offset + center2, width1) +
             amp2 * lorentz(x, center2, width2))
+
+def one_peak_log_likelihood(x, y, amp, T, m, C0, width, light_background,
+                            ccd_background, ccd_stdev,
+                            conv_range = -1, debug = False,
+                            test_norm = False, safe = False,
+                            gaussian_approx = False):
+    """
+    Returns the log-likelihood calculated for the two-peak + CCD noise model.
+    See also: one_peak_model
+    Parameters:
+    -----------
+    x : wavelength or x-axis value
+    y : corresponding observed data value
+    amp: amplitude of the SiV peak in the spectrum
+    T : The temperature of the sample
+    m : The linear scaling of the SiV peak position with temperature
+    C0 : The offset in the above linear scaling
+    width : The width (FWHM) of the SiV line
+    light_background : The contribution to the background from stray light,
+                       contributing shot noise
+    ccd_backgrond : The contribution to the background from CCD readout,
+                    contributing gaussian noise
+    ccd_stdev : The standard deviation on the gaussian CCD noise
+
+    Optional Arguments:
+    -------------------
+    gaussian_approx: Use a gaussian approximation for the poisson distribution.
+                     This allows the calculation to be sped up by several
+                     orders of magnitude and is a good approximation as long
+                     as the relevant signal is greater than about ten counts.
+    conv_range : How many sigmas of the poisson distribution to go out to in
+                 the convolution. For example, if there are 1000 photons in a
+                 bin, the convolution is centered around 1000 and goes out to
+                 1000 +/- conv_range * sqrt(1000). Default value is -1, which
+                 goes out to 2.5 sigma. Note that the beahvior of this argument
+                 changes if the 'safe' argument is True. (See below.)
+    debug : if True, returns the convolution list, the convolution
+            matrix, the poisson matrix, the gaussian matrix, the
+            likelihood list, and the computed max_y. False by default,
+            in which case only the log-likelihood is returned.
+    test_norm: if True, tests to make sure that the gaussian and poisson
+               contributions are normalized. This is the default case.
+               If False, the function will run a little faster but will
+               not check this condition.
+    safe : if True, calculate the likelihood using the super-safe default
+           for the convolution ranges. This is much slower, but possibly
+           useful if you are getting unexpected results in inference.
+           Default: False.
+           This changes the behavior of the conv_range command.
+           If safe is True, conv_range is the total range to go out to
+           in the convolution (not the range in terms of sigma).
+           The default behavior also changes: in the default case, the
+           convolution goes out to min([max(y), max(model_prediction)]) plus
+           3 * sqrt of this max.
+
+    Note: This function calls two_peak_log_likelihood with:
+            amp1 = amp
+            amp2 = 0
+            C0 + T*m = center_offset = center1
+            center2 = 0
+            width = width1
+    """
+    return two_peak_log_likelihood(x, y, amp, 0, T, m, C0, 0,
+                                    width, 1, light_background,
+                                    ccd_background, ccd_stdev,
+                                    conv_range, debug, test_norm,
+                                    safe, gaussian_approx)
+
 
 def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
                             width1, width2, light_background,
@@ -272,6 +350,72 @@ def two_peak_log_likelihood(x, y, amp1, amp2, T, m, C0, center2,
     # Return sum of log_likelihoods
     ll = np.sum(np.log(likelihood_list))
     return ll
+
+def one_peak_log_likelihood_Spectrum(spectrum, amp, T, m, C0, width, light_background,
+                            ccd_background, ccd_stdev,
+                            conv_range = -1, debug = False,
+                            test_norm = False, safe = False,
+                            gaussian_approx = False):
+    """
+    Returns the log-likelihood calculated for the two-peak + CCD noise model.
+    See also: one_peak_model
+    Parameters:
+    -----------
+    spectrum : data passed as an instance of Spectrum class
+    amp: amplitude of the SiV peak in the spectrum
+    T : The temperature of the sample
+    m : The linear scaling of the SiV peak position with temperature
+    C0 : The offset in the above linear scaling
+    width : The width (FWHM) of the SiV line
+    light_background : The contribution to the background from stray light,
+                       contributing shot noise
+    ccd_backgrond : The contribution to the background from CCD readout,
+                    contributing gaussian noise
+    ccd_stdev : The standard deviation on the gaussian CCD noise
+
+    Optional Arguments:
+    -------------------
+    gaussian_approx: Use a gaussian approximation for the poisson distribution.
+                     This allows the calculation to be sped up by several
+                     orders of magnitude and is a good approximation as long
+                     as the relevant signal is greater than about ten counts.
+    conv_range : How many sigmas of the poisson distribution to go out to in
+                 the convolution. For example, if there are 1000 photons in a
+                 bin, the convolution is centered around 1000 and goes out to
+                 1000 +/- conv_range * sqrt(1000). Default value is -1, which
+                 goes out to 2.5 sigma. Note that the beahvior of this argument
+                 changes if the 'safe' argument is True. (See below.)
+    debug : if True, returns the convolution list, the convolution
+            matrix, the poisson matrix, the gaussian matrix, the
+            likelihood list, and the computed max_y. False by default,
+            in which case only the log-likelihood is returned.
+    test_norm: if True, tests to make sure that the gaussian and poisson
+               contributions are normalized. This is the default case.
+               If False, the function will run a little faster but will
+               not check this condition.
+    safe : if True, calculate the likelihood using the super-safe default
+           for the convolution ranges. This is much slower, but possibly
+           useful if you are getting unexpected results in inference.
+           Default: False.
+           This changes the behavior of the conv_range command.
+           If safe is True, conv_range is the total range to go out to
+           in the convolution (not the range in terms of sigma).
+           The default behavior also changes: in the default case, the
+           convolution goes out to min([max(y), max(model_prediction)]) plus
+           3 * sqrt of this max.
+
+    Note: This function calls two_peak_log_likelihood with:
+            amp1 = amp
+            amp2 = 0
+            C0 + T*m = center_offset = center1
+            center2 = 0
+            width = width1
+    """
+    return two_peak_log_likelihood_Spectrum(spectrum, amp, 0, T, m, C0, 0,
+                                            width, 1, light_background,
+                                            ccd_background, ccd_stdev,
+                                            conv_range, debug, test_norm,
+                                            safe, gaussian_approx)
 
 
 def two_peak_log_likelihood_Spectrum(spectrum, amp1, amp2, T, m, C0, center2,
