@@ -1,5 +1,4 @@
 import json
-import pandas as pd
 from collections import OrderedDict
 import inspect
 import numpy as np
@@ -82,3 +81,6 @@ class Spectrum(Printable):
         Appends a dict to the existing metadata.
         """
         self.metadata = io.merge_dicts(self.metadata, new_dict)
+
+    def x_slice(self, start, end):
+        return Spectrum(self.data[start:end], self.metadata)

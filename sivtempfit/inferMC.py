@@ -30,7 +30,7 @@ def log_likelihood_params_2(theta, x, y, safe_ll=False, gaussian_approx=False):
 def log_likelihood_params_1(theta, x, y, safe_ll=False, gaussian_approx=False):
     # Theta is the list of parameters. We are only interested in a single
     # spectrum here, so we do not include T or m in our sampling
-    amp, center, width, light_bakcground, ccd_background, \
+    amp, center, width, light_background, ccd_background, \
         ccd_stdev = theta
 
     return model.one_peak_log_likelihood(x, y, amp, 0, 0, center,
@@ -180,7 +180,7 @@ def generate_sample_ball(data, calib_pos_guess, num_peaks, nwalkers=96,
             center_offset_guess = 740 - calib_pos_guess
         else:
             # In this case, the center offset is the actual center position
-            center_offset_guess = 739
+            center_offset_guess = 740
 
     if center_offset_std is None:
         center_offset_std = 0.015 / tightness
@@ -224,14 +224,18 @@ def generate_sample_ball(data, calib_pos_guess, num_peaks, nwalkers=96,
                 + ccd_background_guess
 
     if debug:
-        # For debug case, OK to return everything regardless of whether we have
-        # one or two peaks.
-        return ((amp1_guess, amp2_guess, center_offset_guess, calib_pos_guess,
-                 width1_guess, width2_guess, light_background_guess,
-                 ccd_background_guess, ccd_stdev_guess),
-                (amp1_std, amp2_std, center_offset_std, calib_pos_std,
-                 width1_std, width2_std, light_background_std,
-                 ccd_background_std, ccd_stdev_std))
+        if num_peaks == 2:
+            return ((amp1_guess, amp2_guess, center_offset_guess, calib_pos_guess,
+                     width1_guess, width2_guess, light_background_guess,
+                     ccd_background_guess, ccd_stdev_guess),
+                    (amp1_std, amp2_std, center_offset_std, calib_pos_std,
+                     width1_std, width2_std, light_background_std,
+                     ccd_background_std, ccd_stdev_std))
+        else:
+            return ((amp1_guess, center_offset_guess, width1_guess,
+                     light_background_guess, ccd_background_guess, ccd_stdev_guess),
+                    (amp1_std, center_offset_std, width1_std,
+                     light_background_std, ccd_background_std, ccd_stdev_std))
 
     if num_peaks == 2:
         return emcee.utils.sample_ball(
@@ -247,13 +251,28 @@ def generate_sample_ball(data, calib_pos_guess, num_peaks, nwalkers=96,
             (amp1_guess, center_offset_guess, width1_guess,
                 light_background_guess, ccd_background_guess, ccd_stdev_guess),
             (amp1_std, center_offset_std, width1_std,
-                light_background_std, ccd_background_std, ccd_stdev_std))
+                light_background_std, ccd_background_std, ccd_stdev_std),
+            nwalkers)
 
+# Define an error class that will be used when the sampler has a zero
+# acceptance fraction:
+
+class MCSamplerError(Exception):
+    """Exception raised for errors with the emcee sampler
+
+    Attributes:
+        sampler -- sampler object that produced the error
+        message -- explanation of the error
+    """
+
+    def __init__(self, expression, message):
+        self.expression = expression
+        self.message = message
 
 def mc_likelihood_sampler(data, calib_pos, num_peaks, nwalkers=96,
-                          starting_positions=None, run=True, nsteps=500,
+                          starting_positions=None, run=True, nsteps=1000,
                           threads=1, safe_ll=False, tightness=1,
-                          gaussian_approx=False):
+                          gaussian_approx=False, override=False):
     """
     Returns an emcee sampler object based on the supplied data and the
     likelihood from the model.
@@ -331,7 +350,7 @@ def mc_likelihood_sampler(data, calib_pos, num_peaks, nwalkers=96,
                         safe=safe_ll, gaussian_approx=gaussian_approx)
     else:
         def log_likelihood(theta):
-            amp, center, width, light_bakcground, ccd_background, \
+            amp, center, width, light_background, ccd_background, \
                 ccd_stdev = theta
 
             return model.one_peak_log_likelihood(x, y, amp, 0, 0, center,
@@ -375,7 +394,25 @@ def mc_likelihood_sampler(data, calib_pos, num_peaks, nwalkers=96,
     if not(run):
         return sampler
 
-    sampler.run_mcmc(starting_positions, nsteps)
+    # If override is true or the number of steps is small, just run the
+    # sampler with the requested number of steps.
+    if override or nsteps <= 100:
+        sampler.run_mcmc(starting_positions, nsteps)
+
+    # If override is false, run the sampler for 50 steps. Then, check to see
+    # if the acceptance fraction is exactlly zero. If it is, raise an error,
+    # and tell the user that this error can be overridden with the
+    # override=True flag.
+    sampler.run_mcmc(starting_positions, 50)
+
+    mean_af = sampler.acceptance_fraction.mean()
+    if mean_af <= 0.01:
+        raise MCSamplerError(sampler, "Acceptance fraction: " + str(mean_af) +
+                             " too low! Aborting! If you want to continue" +
+                             " anyway, rerun with the `override=True` flag.")
+    else:
+        sampler.run_mcmc(starting_positions, nsteps)
+
     return sampler
 
 
@@ -392,7 +429,15 @@ def parameter_samples_df(sampler, burn_in=500, tracelabels=None):
     Discards the first burn_in samples from the sampler.
     """
     if tracelabels is None:
-        tracelabels = ['A1', 'A2', 'C0', 'C2', 'w1', 'w2', 'lb', 'cb', 'cs']
+        if sampler.chain.shape[-1] == 9:
+            tracelabels = ['A1', 'A2', 'C0', 'C2', 'w1', 'w2', 'lb', 'cb', 'cs']
+        elif sampler.chain.shape[-1] == 6:
+            tracelabels = ['A', 'C', 'W', 'LB', 'CB', 'Cs']
+        else:
+            raise ValueError("It seems like the sampler does not correspond" +
+                             "to either the one-peak or two-peak case." +
+                             "(The sampler chain has " + sampler.chain.shape[-1] +
+                             "parameters.)")
 
     if burn_in > sampler.chain.shape[1]:
         raise ValueError('burn_in should be less than the chain length!')
@@ -470,3 +515,4 @@ def credible_intervals_from_sampler(sampler, burn_in=500, interval_range=0.68,
                 for x in parameter_samples.columns]
     else:
         raise ValueError('interval_range must be a number or list of numbers')
+
