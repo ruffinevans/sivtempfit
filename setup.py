@@ -17,7 +17,8 @@ setup(name='sivtempfit',
           'emcee',
           'seaborn',
           'matplotlib',
-          'pandas'
+          'pandas',
+          'corner'
       ],
       test_suite='nose.collector',
       tests_require=['nose'],
