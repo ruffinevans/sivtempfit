@@ -152,7 +152,7 @@ def generate_sample_ball(data, calib_pos_guess, num_peaks, nwalkers=96,
     median_y_bkrd = np.median(y[near_end_index:])
 
     if width1_guess is None:
-        width1_guess = 7.2
+        width1_guess = 4.7
 
     if width1_std is None:
         width1_std = 0.2 / tightness
@@ -398,8 +398,9 @@ def mc_likelihood_sampler(data, calib_pos, num_peaks, nwalkers=96,
     # sampler with the requested number of steps.
     if override or nsteps <= 100:
         sampler.run_mcmc(starting_positions, nsteps)
+        return sampler
 
-    # If override is false, run the sampler for 50 steps. Then, check to see
+    # If we're still here, run the sampler for 50 steps. Then, check to see
     # if the acceptance fraction is exactlly zero. If it is, raise an error,
     # and tell the user that this error can be overridden with the
     # override=True flag.
