@@ -9,6 +9,7 @@ from .dataprocessing import Spectrum
 import numpy as np
 import pandas as pd
 import warnings
+from scipy.optimize import curve_fit
 
 
 # Define the log_likelihood in the form that the emcee sampler wants it.
@@ -50,7 +51,8 @@ def generate_sample_ball(data, calib_pos_guess, num_peaks, nwalkers=96,
                          light_background_guess=None, light_background_std=None,
                          ccd_background_guess=None, ccd_background_std=None,
                          ccd_stdev_guess=None, ccd_stdev_std=None,
-                         debug=False, return_y_values=False, tightness=1):
+                         debug=False, return_y_values=False, tightness=1,
+                         MLE_guesses=True):
     """
     Creates an emcee sample ball to use as the starting position for the emcee
     sampler.
@@ -100,6 +102,14 @@ def generate_sample_ball(data, calib_pos_guess, num_peaks, nwalkers=96,
                       approximately agrees.
     tightness : scaling factor for the _std variables. A higher tightness
                 means a more localized sample_ball.
+    MLE_guesses : use a Levenberg-Marquardt algorithm (scipy's `curve_fit`)
+                  to refine the guesses to the maximum-likelihood estimates.
+                  This is True by default and should drastically improve the
+                  default reliability of the sampler. If this is True, the
+                  tightness will also be increased by a factor of ten.
+                  Note that supplying decent guesses for the other arguments
+                  is still important, because they will be used as inputs for
+                  the MLE.
 
 
     Explanation:
@@ -207,6 +217,39 @@ def generate_sample_ball(data, calib_pos_guess, num_peaks, nwalkers=96,
     if ccd_stdev_std is None:
         ccd_stdev_std = 4 / tightness
 
+    if MLE_guesses:
+        # In this case, use scipy curve_fit to refine the user-supplied
+        # or default guesses.
+        if num_peaks == 1:
+            # Take the guesses supplied by the user...
+            guesses = (amp1_guess, center_offset_guess, width1_guess,
+                       light_background_guess + ccd_background_guess)
+            # ... perform the fit ...
+            MLE_fit = curve_fit(model.one_peak_model, x, y, guesses)
+            # ... and redefine the appropriate parameters based on the fit
+            amp1_guess = MLE_fit[0][0]
+            center_offset_guess = MLE_fit[0][1]
+            width1_guess = MLE_fit[0][2]
+            light_background_guess = MLE_fit[0][3] * 0.01
+            ccd_background_guess = MLE_fit[0][3] * 0.99
+        else:
+            guesses = (amp1_guess, amp2_guess, center_offset_guess,
+                       calib_pos_guess, width1_guess, width2_guess,
+                       light_background_guess + ccd_background_guess)
+            MLE_fit = curve_fit(model.two_peak_model, x, y, guesses)
+            amp1_guess = MLE_fit[0][0]
+            amp2_guess = MLE_fit[0][1]
+            center_offset_guess = MLE_fit[0][2]
+            calib_pos_guess = MLE_fit[0][3]
+            width1_guess = MLE_fit[0][4]
+            width2_guess = MLE_fit[0][5]
+            light_background_guess = MLE_fit[0][6] * 0.01
+            ccd_background_guess = MLE_fit[0][6] * 0.99
+        # Finally, increase the tightness. We expect the parameters to
+        # be very close to the correct values, so we can make the ball
+        # tighter.
+        tightness *= 10
+
     # Order of parameters is amp1, amp2, C0, center2, width1, width2,
     # light_background, ccd_background, ccd_stdev
     if return_y_values:
@@ -273,7 +316,8 @@ class MCSamplerError(Exception):
 def mc_likelihood_sampler(data, calib_pos, num_peaks, nwalkers=96,
                           starting_positions=None, run=True, nsteps=1000,
                           threads=1, safe_ll=False, tightness=1,
-                          gaussian_approx=False, override=False):
+                          gaussian_approx=False, override=False,
+                          MLE_guesses=True):
     """
     Returns an emcee sampler object based on the supplied data and the
     likelihood from the model.
@@ -310,6 +354,11 @@ def mc_likelihood_sampler(data, calib_pos, num_peaks, nwalkers=96,
                      This allows the calculation to be sped up by several
                      orders of magnitude and is a good approximation as long
                      as the relevant signal is greater than about ten counts.
+    MLE_guesses : use a Levenberg-Marquardt algorithm (scipy's `curve_fit`)
+              to refine the initial parameter guesses to the maximum-likelihood
+              estimates. This is True by default and should drastically improve
+              the default reliability of the sampler. If this is True, the 
+              tightness will also be increased by a factor of ten.
 
     Note:
     -----
@@ -369,7 +418,8 @@ def mc_likelihood_sampler(data, calib_pos, num_peaks, nwalkers=96,
     if starting_positions is None:
         # Call above function to get starting positions
         starting_positions = generate_sample_ball(data, calib_pos, num_peaks,
-                                                  nwalkers, tightness=tightness)
+                                                  nwalkers, tightness=tightness,
+                                                  MLE_guesses=MLE_guesses)
 
     if not(isinstance(threads, int)):
         raise ValueError('Threads must be a positive integer.')
