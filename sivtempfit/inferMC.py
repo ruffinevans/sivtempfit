@@ -8,6 +8,7 @@ from . import model
 from .dataprocessing import Spectrum
 import numpy as np
 import pandas as pd
+import warnings
 
 
 # Define the log_likelihood in the form that the emcee sampler wants it.
@@ -417,7 +418,8 @@ def mc_likelihood_sampler(data, calib_pos, num_peaks, nwalkers=96,
     return sampler
 
 
-def parameter_samples_df(sampler, burn_in=500, tracelabels=None):
+def parameter_samples_df(sampler, burn_in=500, tracelabels=None,
+                         keep_zero_af=False):
     """
     Generate a pandas dataframe from the samples in an emcee object. Useful
     e.g. to run sns.pairplot(parameter_samples, markers='.') to visualize
@@ -426,6 +428,9 @@ def parameter_samples_df(sampler, burn_in=500, tracelabels=None):
     Optional argument tracelabels is a set of labels to use for the parameters.
     If None is passed, the default parameters labels be used. These correspond
     to the two-peak model.
+
+    The optional argument keep_zero_af keeps emcee walkers that have a zero
+    acceptance fraction. By default, these walkers are discarded.
 
     Discards the first burn_in samples from the sampler.
     """
@@ -442,7 +447,21 @@ def parameter_samples_df(sampler, burn_in=500, tracelabels=None):
 
     if burn_in > sampler.chain.shape[1]:
         raise ValueError('burn_in should be less than the chain length!')
-    samples = sampler.chain[:, burn_in:, :]
+
+    # Create a mask that is True where the acceptance fraction is nonzero.
+    zero_af_mask = sampler.acceptance_fraction != 0
+
+    if keep_zero_af:
+        samples = sampler.chain[:, burn_in:, :]
+        # If keep_zero_af is True and there are some that have zero,
+        # issue a warning.
+        if not(all(zero_af_mask)):
+                warnings.warn("Some of the walkers have" + \
+                    " zero acceptance fraction, but they are" + \
+                    " being kept anyway.", RuntimeWarning)
+    else:
+        samples = sampler.chain[zero_af_mask, burn_in:, :]
+
     traces = samples.reshape(-1, len(tracelabels)).T
     return pd.DataFrame({tracelabels[i]: traces[i]
                          for i in range(len(tracelabels))})
